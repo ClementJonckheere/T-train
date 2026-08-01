@@ -1,4 +1,4 @@
-const CACHE = 'seance-v2';
+const CACHE = 'seance-v8';
 const CORE = [
   './',
   './index.html',

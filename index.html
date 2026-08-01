@@ -145,6 +145,17 @@
     background:var(--teal); color:#062b26; font-weight:700; padding:12px 20px; border-radius:12px;
     z-index:70; opacity:0; transition:.25s; font-size:14px}
   .toast.show{opacity:1}
+  .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .cal-head button{background:var(--card2);border:1px solid var(--line);color:var(--ink);width:42px;height:42px;border-radius:11px;font-size:22px;line-height:1}
+  .cal-head button:active{background:var(--accent)}
+  .cal-title{font-family:var(--display);font-weight:600;font-size:18px;text-transform:capitalize}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .cal-dow{text-align:center;color:var(--mut);font-size:11px;font-weight:600}
+  .cal-cell{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;background:var(--card2);color:var(--ink)}
+  .cal-cell.empty{background:transparent}
+  .cal-cell.on{background:#2F6BFF;color:#fff}
+  .cal-cell.today{outline:2px solid var(--accent);outline-offset:-2px}
+  .cal-cell.future{opacity:.32}
   .view{display:none}
   .view.on{display:block}
 </style>
@@ -219,6 +230,29 @@
   </div>
 </div>
 
+<!-- ============ VUE CALENDRIER ============ -->
+<div class="view" id="v-cal">
+  <div class="wrap">
+    <div class="stat-row">
+      <div class="stat"><div class="k tabular" id="cMonth">0</div><div class="l">séances ce mois</div></div>
+      <div class="stat"><div class="k tabular" id="cFreq">–</div><div class="l">séances / semaine</div></div>
+    </div>
+    <div class="panel">
+      <div class="cal-head">
+        <button id="calPrev">&lsaquo;</button>
+        <div class="cal-title" id="calTitle"></div>
+        <button id="calNext">&rsaquo;</button>
+      </div>
+      <div class="cal-grid" id="calDow"></div>
+      <div class="cal-grid" id="calGrid" style="margin-top:6px"></div>
+      <div class="muted" style="font-size:12px;text-align:center;margin-top:14px" id="calSince"></div>
+    </div>
+    <div class="panel">
+      <div class="muted" style="font-size:13px">Une séance terminée coche le jour automatiquement. Tu peux aussi appuyer sur n'importe quel jour pour le cocher ou le décocher à la main.</div>
+    </div>
+  </div>
+</div>
+
 <!-- Rest timer -->
 <div class="timer" id="timer">
   <div class="lab">Repos</div>
@@ -245,6 +279,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5 17.5 17.5M4 8v8M8 4v16M16 4v16M20 8v8M2 12h2M20 12h2"/></svg>
     Séance
   </button>
+  <button data-tab="cal">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+    Calendrier
+  </button>
   <button data-tab="prog">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
     Progression
@@ -260,9 +298,9 @@
 const PROGRAM = [
   {key:"pushA", name:"Push A", tag:"Force", ex:[
     {id:"dc_hlt_f", n:"Développé couché haltères", sets:4, rep:[6,8], kg:20, rest:120},
-    {id:"dinc_hlt", n:"Développé incliné haltères", sets:4, rep:[8,10], kg:16.5, rest:120},
+    {id:"dinc_hlt", n:"Développé incliné haltères", sets:4, rep:[8,10], kg:16, rest:120},
     {id:"dep_assis", n:"Développé épaules assis (dossier vertical)", sets:3, rep:[8,10], kg:12, rest:90},
-    {id:"skull", n:"Skull crusher haltères", sets:3, rep:[8,10], kg:7.5, rest:75},
+    {id:"skull", n:"Skull crusher haltères", sets:3, rep:[8,10], kg:8, rest:75},
     {id:"elev_lat", n:"Élévations latérales", sets:3, rep:[12,15], kg:8, rest:60},
   ]},
   {key:"pull", name:"Pull", tag:"Dos", ex:[
@@ -284,13 +322,13 @@ const PROGRAM = [
     {id:"dinc_hlt2", n:"Développé incliné haltères", sets:4, rep:[10,12], kg:14, rest:90},
     {id:"ecarte", n:"Écarté haltères (plat ou incliné)", sets:3, rep:[12,15], kg:10, rest:75},
     {id:"elev_lat2", n:"Élévations latérales", sets:3, rep:[12,15], kg:8, rest:60},
-    {id:"ext_tri", n:"Extension triceps nuque haltère", sets:3, rep:[10,12], kg:10, rest:60},
+    {id:"ext_tri_1b", n:"Extension triceps 1 bras assis (dossier relevé)", sets:3, rep:[10,12], kg:8, rest:60},
   ]},
   {key:"legsB", name:"Legs B", tag:"Volume", ex:[
     {id:"fentes_m", n:"Fentes marchées haltères", sets:3, rep:[10,12], kg:14, rest:90},
     {id:"hipthrust", n:"Hip thrust haltère (dos sur banc)", sets:4, rep:[12,15], kg:24, rest:90},
-    {id:"split_sq", n:"Squat bulgare lesté", sets:3, rep:[10,12], kg:14, rest:90},
-    {id:"mollet_ass", n:"Mollets assis haltères", sets:4, rep:[15,20], kg:20, rest:60},
+    {id:"leg_curl", n:"Leg curl (ischios, sur le ventre)", sets:4, rep:[10,12], kg:20, rest:75},
+    {id:"leg_ext", n:"Leg extension (quadriceps)", sets:4, rep:[12,15], kg:30, rest:75},
   ]},
 ];
 
@@ -308,13 +346,14 @@ const Store={
     try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}
   }
 };
-const K_STATE="fitlog:state", K_SESS="fitlog:sessions", K_BW="fitlog:bodyweight", K_CUR="fitlog:current";
+const K_STATE="fitlog:state", K_SESS="fitlog:sessions", K_BW="fitlog:bodyweight", K_CUR="fitlog:current", K_DAYS="fitlog:days";
 
 /* ---------- État runtime ---------- */
 let state={weights:{}};        // charges + reps mémorisées par exercice
 let sessions=[];               // historique de séances
 let bodyweight=[];             // pesées
 let current=null;              // séance en cours {date,key,done:{exId:[{kg,reps}]}}
+let trainedDays={};            // jours entraînés {"YYYY-MM-DD":true}
 let selKey="pushA";
 
 const todayISO=()=> new Date().toISOString().slice(0,10);
@@ -325,7 +364,7 @@ function exById(id){for(const s of PROGRAM)for(const e of s.ex)if(e.id===id)retu
 function sessByKey(k){return PROGRAM.find(s=>s.key===k);}
 
 /* mémorise la charge/reps travaillée d'un exercice */
-function getW(ex){const w=state.weights[ex.id]||{};return {kg:w.kg??ex.kg, reps:w.reps??ex.rep[0]};}
+function getW(ex){const w=state.weights[ex.id]||{};return {kg:Math.round(w.kg??ex.kg), reps:w.reps??ex.rep[0]};}
 async function setW(id,kg,reps){state.weights[id]={kg,reps};await Store.set(K_STATE,state);}
 
 /* ---------- Chargement initial ---------- */
@@ -334,6 +373,7 @@ async function boot(){
   if(!state.weights)state.weights={};
   sessions=(await Store.get(K_SESS))||[];
   bodyweight=(await Store.get(K_BW))||[];
+  trainedDays=(await Store.get(K_DAYS))||{};
   current=await Store.get(K_CUR);
   if(current && current.date!==todayISO()){current=null; await Store.set(K_CUR,null);}
   if(current) selKey=current.key;
@@ -387,9 +427,9 @@ function renderWorkout(){
     const kgEl=card.querySelector('[data-v="kg"]'), rEl=card.querySelector('[data-v="reps"]');
     const step=(dv)=>{
       let kg=parseFloat(kgEl.textContent), reps=parseInt(rEl.textContent);
-      if(dv==="kg+")kg+=2.5; if(dv==="kg-")kg=Math.max(0,kg-2.5);
+      if(dv==="kg+")kg+=1; if(dv==="kg-")kg=Math.max(0,kg-1);
       if(dv==="r+")reps+=1; if(dv==="r-")reps=Math.max(1,reps-1);
-      kgEl.textContent=(Math.round(kg*10)/10); rEl.textContent=reps;
+      kg=Math.round(kg); kgEl.textContent=kg; rEl.textContent=reps;
       setW(ex.id,kg,reps);
     };
     card.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>step(b.dataset.a));
@@ -449,6 +489,7 @@ async function finishSession(){
     exercises:exs,volume:currentVolume()};
   sessions.unshift(entry);
   await Store.set(K_SESS,sessions);
+  trainedDays[entry.date]=true; await Store.set(K_DAYS,trainedDays);
   current=null; await Store.set(K_CUR,null);
   renderWorkout();
   toast("Séance enregistrée 💪");
@@ -625,9 +666,56 @@ function lineChart(pts,color,unit,goal){
     ${dots}${lastLbl}</svg>`;
 }
 
+/* ---------- VUE CALENDRIER ---------- */
+let calY, calM;
+function isoOf(y,m,d){return y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");}
+function renderCal(){
+  const now=new Date();
+  if(calY===undefined){calY=now.getFullYear(); calM=now.getMonth();}
+  const first=new Date(calY,calM,1);
+  const dow=(first.getDay()+6)%7;                 // lundi = 0
+  const nDays=new Date(calY,calM+1,0).getDate();
+  $("#calTitle").textContent=first.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  $("#calDow").innerHTML=["L","M","M","J","V","S","D"].map(n=>`<div class="cal-dow">${n}</div>`).join("");
+  const todayIso=todayISO();
+  let cells="";
+  for(let i=0;i<dow;i++)cells+='<div class="cal-cell empty"></div>';
+  for(let d=1;d<=nDays;d++){
+    const iso=isoOf(calY,calM,d);
+    const on=!!trainedDays[iso], isToday=iso===todayIso, future=iso>todayIso;
+    cells+=`<div class="cal-cell${on?" on":""}${isToday?" today":""}${future?" future":""}" data-iso="${iso}">${d}</div>`;
+  }
+  $("#calGrid").innerHTML=cells;
+  $("#calGrid").querySelectorAll("[data-iso]").forEach(c=>c.onclick=()=>toggleDay(c.dataset.iso));
+  // stats
+  const all=Object.keys(trainedDays).filter(k=>trainedDays[k]).sort();
+  const pref=calY+"-"+String(calM+1).padStart(2,"0");
+  $("#cMonth").textContent=all.filter(k=>k.startsWith(pref)).length;
+  if(all.length){
+    const firstD=new Date(all[0]+"T00:00:00");
+    const daysSince=Math.max(1,Math.round((new Date(todayIso+"T00:00:00")-firstD)/864e5)+1);
+    const weeks=Math.max(1,daysSince/7);
+    $("#cFreq").textContent=(all.length/weeks).toFixed(1);
+    const last=new Date(all[all.length-1]+"T00:00:00");
+    const ago=Math.round((new Date(todayIso+"T00:00:00")-last)/864e5);
+    const agoTxt=ago<=0?"aujourd'hui":(ago===1?"hier":"il y a "+ago+" jours");
+    $("#calSince").textContent=all.length+" séance"+(all.length>1?"s":"")+" au total · depuis "+daysSince+" jours · dernière : "+agoTxt;
+  }else{
+    $("#cFreq").textContent="–";
+    $("#calSince").textContent="Aucune séance cochée pour l'instant.";
+  }
+}
+function toggleDay(iso){
+  if(iso>todayISO())return;                        // pas de jour futur
+  if(trainedDays[iso])delete trainedDays[iso]; else trainedDays[iso]=true;
+  Store.set(K_DAYS,trainedDays); renderCal();
+}
+$("#calPrev").onclick=()=>{calM--; if(calM<0){calM=11;calY--;} renderCal();};
+$("#calNext").onclick=()=>{calM++; if(calM>11){calM=0;calY++;} renderCal();};
+
 /* ---------- Navigation ---------- */
-const views={workout:"v-workout",prog:"v-prog",weight:"v-weight"};
-const titles={workout:["Séance du jour","Séance"],prog:["Suivi","Progression"],weight:["Corps","Poids"]};
+const views={workout:"v-workout",cal:"v-cal",prog:"v-prog",weight:"v-weight"};
+const titles={workout:["Séance du jour","Séance"],cal:["Assiduité","Calendrier"],prog:["Suivi","Progression"],weight:["Corps","Poids"]};
 document.querySelectorAll("nav button").forEach(b=>{
   b.onclick=()=>{
     const t=b.dataset.tab;
@@ -636,6 +724,7 @@ document.querySelectorAll("nav button").forEach(b=>{
     Object.values(views).forEach(v=>$("#"+v).classList.remove("on"));
     $("#"+views[t]).classList.add("on");
     $("#eyebrow").textContent=titles[t][0]; $("#pageTitle").textContent=titles[t][1];
+    if(t==="cal")renderCal();
     if(t==="prog")renderProg();
     if(t==="weight")renderWeight();
   };
