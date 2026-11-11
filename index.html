@@ -149,10 +149,10 @@
   .cal-head button{background:var(--card2);border:1px solid var(--line);color:var(--ink);width:42px;height:42px;border-radius:11px;font-size:22px;line-height:1}
   .cal-head button:active{background:var(--accent)}
   .cal-title{font-family:var(--display);font-weight:600;font-size:18px;text-transform:capitalize}
-  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
   .cal-dow{text-align:center;color:var(--mut);font-size:11px;font-weight:600}
   .cal-cell{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;background:var(--card2);color:var(--ink)}
-  .cal-cell.empty{background:transparent}
+  .cal-cell.empty{background:transparent;padding:0;min-width:0}
   .cal-cell.on{background:#2F6BFF;color:#fff}
   .cal-cell.today{outline:2px solid var(--accent);outline-offset:-2px}
   .cal-cell.future{opacity:.32}
@@ -281,9 +281,9 @@
     </div>
     <div class="panel">
       <div class="cal-head">
-        <button id="calPrev">&lsaquo;</button>
+        <button id="calPrev" aria-label="Mois précédent">&lsaquo;</button>
         <div class="cal-title" id="calTitle"></div>
-        <button id="calNext">&rsaquo;</button>
+        <button id="calNext" aria-label="Mois suivant">&rsaquo;</button>
       </div>
       <div class="cal-grid" id="calDow"></div>
       <div class="cal-grid" id="calGrid" style="margin-top:6px"></div>
