@@ -1,0 +1,21 @@
+name: Vérifications
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - name: Parcours navigateur (Chrome préinstallé)
+        run: PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$(command -v google-chrome)" npm test

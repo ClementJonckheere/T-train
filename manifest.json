@@ -1,7 +1,7 @@
 {
   "name": "Séance",
   "short_name": "Séance",
-  "description": "Suivi de séances, timer de repos, progression et poids",
+  "description": "Programme haltères sur 6 jours, séances de 20 à 30 minutes, progression et objectif 85 kg",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
