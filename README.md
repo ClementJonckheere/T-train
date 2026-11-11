@@ -15,7 +15,7 @@ charges, répétitions, pesées et brouillons sont conservés sur l'appareil.
 | Samedi | Jambes B | Même séance que mercredi |
 | Dimanche | Repos | Récupération |
 
-- Échauffement de 4 minutes et chronomètre global, repos compris. Le compteur
+- Échauffement guidé de 5 minutes, sans haltères, et chronomètre global, repos compris. Le compteur
   signale la fin du créneau sans enregistrer ni interrompre automatiquement.
 - Mode **20 minutes** : les trois premiers exercices ; mode **30 minutes** :
   les quatre. Une séance partielle peut être enregistrée.
@@ -25,6 +25,21 @@ charges, répétitions, pesées et brouillons sont conservés sur l'appareil.
 - Les formats sont choisis avant de commencer ; ils restent fixes pendant la séance.
 - La séance du jour est proposée automatiquement, ou une séance non terminée
   reprend à la réouverture. Chaque séance possède son propre brouillon.
+
+À chaque lancement de l'échauffement, le minuteur affiche le mouvement en cours,
+ses consignes et répétitions, le temps restant pour ce mouvement et les quatre
+étapes. Il passe automatiquement à l'étape suivante, en tenant compte du temps
+écoulé même si l'écran a été verrouillé. Le bouton de fin permet de quitter le
+guide à tout moment ; le relancer recommence les cinq minutes.
+
+| Séances | 2 premières minutes | Puis une minute par mouvement |
+| --- | --- | --- |
+| Lundi / jeudi | Marche active sur place | Cercles de bras ; pompes contre un mur ; développé épaules sans poids |
+| Mardi / vendredi | Marche active sur place | Roulements d'épaules ; rowing sans poids ; oiseau sans poids |
+| Mercredi / samedi | Marche active sur place | Squats sans charge ; bascule des hanches ; montées sur la pointe des pieds |
+
+Le temps d'échauffement est inclus dans le créneau choisi. Les réglages ±15 s
+restent réservés aux temps de repos pour conserver les durées du guide.
 
 ## Charges et progression
 
@@ -81,7 +96,7 @@ Tous les fichiers de production restent à la racine : `index.html`, `app.js`,
 3. iPhone/Safari : **Partager → Sur l'écran d'accueil**. Android/Chrome :
    **Installer l'application** depuis le menu.
 
-Le cache `seance-v9` inclut les deux fichiers JavaScript. Après une mise à jour,
+Le cache `seance-v10` inclut les deux fichiers JavaScript. Après une mise à jour,
 ouvrir l'app avec une connexion puis la fermer et la rouvrir si l'ancien écran
 reste affiché. Ne pas effacer les données du site pour mettre l'app à jour.
 Pour les prochaines versions, incrémenter le nom du cache dans `sw.js`.

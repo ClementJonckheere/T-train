@@ -57,6 +57,33 @@ const EXERCISES = {
   lunge: {id:'mass_lunge', n:'Fentes arrière avec haltères', sets:2, rep:[8,12], kg:null, rest:90, load:'pair', sides:2, allowZero:true, cue:'Recule un pied, fléchis les deux jambes puis remonte avec contrôle. Les répétitions sont par jambe ; fais les deux côtés avant de valider une série. Tu peux commencer sans charge (0 kg).'},
   calf: {id:'mass_calf', n:'Mollets debout avec haltères', sets:2, rep:[12,25], kg:null, rest:60, load:'pair', cue:'Monte sur la pointe des pieds, marque une courte pause puis redescends complètement. Reste sur un sol stable et garde l’équilibre.'}
 };
+/* Échauffements sans haltères : 2 minutes de marche, puis 3 mouvements d'une minute. */
+const WARMUP_MARCH = {name:'Marche active sur place', seconds:120, cue:'Marche sur place en balançant les bras. Commence doucement puis accélère progressivement, sans courir ni sauter.'};
+const WARMUPS = {
+  push: {name:'Pectoraux · épaules · triceps', steps:[
+    WARMUP_MARCH,
+    {name:'Cercles de bras', seconds:60, cue:'Bras légèrement écartés, commence par de petits cercles puis agrandis-les. Change de sens après 30 secondes.'},
+    {name:'Pompes contre un mur', seconds:60, cue:'Mains à hauteur des épaules, pieds légèrement reculés. Approche la poitrine du mur puis repousse. Fais 8 à 12 répétitions faciles.'},
+    {name:'Développé épaules sans poids', seconds:60, cue:'Mains près des épaules, pousse les bras au-dessus de la tête puis redescends. Fais 10 à 15 répétitions lentes, sans cambrer le dos.'}
+  ]},
+  pull: {name:'Dos · arrière des épaules · biceps', steps:[
+    WARMUP_MARCH,
+    {name:'Roulements d’épaules', seconds:60, cue:'Bras relâchés, fais tranquillement 10 cercles d’épaules vers l’avant puis 10 vers l’arrière.'},
+    {name:'Rowing sans poids', seconds:60, cue:'Penche légèrement le buste en poussant les fesses vers l’arrière. Ramène les coudes vers les hanches puis tends les bras. Fais 10 à 15 répétitions.'},
+    {name:'Oiseau sans poids', seconds:60, cue:'Buste légèrement penché, ouvre les bras sur les côtés puis ramène-les devant toi. Fais 10 à 15 répétitions, sans élan.'}
+  ]},
+  legs: {name:'Jambes · fessiers', steps:[
+    WARMUP_MARCH,
+    {name:'Squats sans charge', seconds:60, cue:'Fais 8 à 12 répétitions lentes, pieds au sol. Descends jusqu’à une profondeur confortable.'},
+    {name:'Bascule des hanches', seconds:60, cue:'Mains sur les hanches, genoux légèrement fléchis. Pousse les fesses vers l’arrière en gardant le dos stable, puis redresse-toi. Fais 10 à 12 répétitions.'},
+    {name:'Montées sur la pointe des pieds', seconds:60, cue:'Tiens légèrement un mur pour l’équilibre. Monte puis redescends doucement. Fais 15 à 20 répétitions.'}
+  ]}
+};
+function warmupForSession(session) {
+  // Les anciennes séances encore en cours ont également le guide adapté.
+  const type = session.key.includes('push') ? 'push' : session.key.includes('pull') ? 'pull' : 'legs';
+  return WARMUPS[type];
+}
 const PROGRAM = [
   {key:'mass_push_a', name:'Pectoraux A', tag:'Lundi', day:1, focus:'Pectoraux · épaules · triceps', ex:[EXERCISES.flat, EXERCISES.press, EXERCISES.lateral, EXERCISES.triceps]},
   {key:'mass_pull_a', name:'Dos A', tag:'Mardi', day:2, focus:'Dos · arrière des épaules · biceps', ex:[EXERCISES.row, EXERCISES.pullover, EXERCISES.rear, EXERCISES.curl]},
