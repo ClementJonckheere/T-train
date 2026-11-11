@@ -118,9 +118,9 @@ function renderPlan(s) {
     <div class="week">${PROGRAM.map(day => `<button data-day="${day.key}" class="${day.key === selKey ? 'on ' : ''}${day.day === today ? 'today' : ''}" aria-label="${day.tag} : ${day.name}">${day.tag.slice(0,3)}<b>${day.day === 1 || day.day === 4 ? 'Pecs' : day.day === 2 || day.day === 5 ? 'Dos' : 'Jambes'}</b></button>`).join('')}<button disabled class="${today === 0 ? 'today' : ''}">Dim<b>Repos</b></button></div>
     ${today === 0 ? '<p>Aujourd’hui : repos. Prochaine séance prévue lundi. Tu peux consulter tes exercices ci-dessous.</p>' : ''}
     ${!legacy ? `<p>4 min d’échauffement · environ ${mode === 20 ? '20 min, 3 exercices' : '25–30 min, 4 exercices'}. Garde environ 2 répétitions possibles en fin de série.</p>
-    <p>Charges affichées <b>par haltère</b> pour les mouvements à deux haltères. Départ interprété : couché 2 × 10 kg, épaules 2 × 5 kg, élévations 2 × 7 kg. Corrige directement si besoin.</p>
+    <details class="ex-meta"><summary>Charges de départ et repères</summary><p>Charges affichées <b>par haltère</b> pour les mouvements à deux haltères. Départ interprété : couché 2 × 10 kg, épaules 2 × 5 kg, élévations 2 × 7 kg. Corrige directement si besoin.</p></details>
     <div class="plan-controls"><button class="small-btn ${mode === 20 ? 'on' : ''}" data-mode="20" ${current ? 'disabled' : ''}>20 min</button><button class="small-btn ${mode === 30 ? 'on' : ''}" data-mode="30" ${current ? 'disabled' : ''}>30 min</button><button class="small-btn ${ramp ? 'on' : ''}" id="rampToggle" aria-pressed="${ramp}" ${current ? 'disabled' : ''}>Reprise · 2 séries ${ramp ? '✓' : ''}</button></div>
-    <p>${ramp ? 'Premières 2 semaines : 2 séries par exercice, avec 3 répétitions encore possibles.' : 'En reprise ? Active « 2 séries » pendant les deux premières semaines.'}</p>
+    ${ramp ? '<p>Premières 2 semaines : 2 séries par exercice, avec 3 répétitions encore possibles.</p>' : ''}
     ${s.day === 3 || s.day === 6 ? `<label class="ex-meta">Accessoire jambes<select id="legVariant" ${current ? 'disabled' : ''}><option value="extension">Extension sur l’accessoire du banc</option><option value="lunge">Fentes arrière (sans accessoire)</option></select></label>` : ''}` : ''}
     ${current && current.date !== todayISO() ? `<p>Séance commencée le ${fmtDate(current.date)} : tes séries ont été conservées.</p>` : ''}
     <div class="session-clock" id="sessionClock"><span id="clockLabel">Durée · échauffement et repos inclus</span><b class="tabular" id="elapsed">0:00</b></div>
@@ -144,13 +144,14 @@ function renderWorkout() {
   renderPlan(s);
   const wrap = $('#exercises'); wrap.innerHTML = '';
   sessionExercises(s).forEach(ex => {
-    const w = getW(ex), doneSets = current?.done?.[ex.id] || [];
+    const w = getW(ex);
+    const ramp = current?.ramp ?? state.ramp ?? false;
     const card = document.createElement('div'); card.className = 'ex'; card.dataset.id = ex.id;
     const previous = latestPerformance(ex.id);
-    const ready = previous && previous.ex.sets.length >= ex.sets && previous.ex.sets.every(set => set.reps >= ex.rep[1]) && new Set(previous.ex.sets.map(set => set.kg)).size === 1;
+    const ready = !ramp && previous && previous.ex.sets.length >= ex.sets && previous.ex.sets.every(set => set.reps >= ex.rep[1]) && new Set(previous.ex.sets.map(set => set.kg)).size === 1;
     card.innerHTML = `
       <div class="ex-top"><div class="ex-name">${ex.n}</div><div class="ex-target">${ex.sets} × ${ex.rep[0]}–${ex.rep[1]}${ex.sides ? ' / côté' : ''}</div></div>
-      <div class="ex-meta">Repos ${ex.rest} s${ex.sides ? ' après les deux côtés' : ''} · environ 2 répétitions en réserve</div>
+      <div class="ex-meta">Repos ${ex.rest} s${ex.sides ? ' après les deux côtés' : ''} · environ ${ramp ? 3 : 2} répétitions en réserve</div>
       ${ex.note ? `<div class="ex-meta">${ex.note}</div>` : ''}
       <div class="steppers">
         <div class="stepper"><div class="lab">Charge</div><div class="ctl"><button data-a="kg-" aria-label="Diminuer la charge : ${ex.n}">−</button><div><input data-v="kg" aria-label="Charge : ${ex.n}" type="number" inputmode="decimal" min="0" max="300" step="0.5" placeholder="—" value="${w.kg ?? ''}"><div class="unit">${unitLabel(ex)}</div></div><button data-a="kg+" aria-label="Augmenter la charge : ${ex.n}">+</button></div></div>
@@ -340,7 +341,6 @@ function renderProg(){
   sessions.slice(0,20).forEach(s=>{
     const row=document.createElement("div"); row.className="log";
     const det=s.exercises.map(e=>{
-      const top=e.sets.reduce((a,b)=>Math.max(a,b.kg),0);
       const meta=exById(e.id) || {};
       return `${escapeHTML(e.name)} · ${e.sets.map(set=>`${fmtKg(set.kg)} kg × ${set.reps}`).join(' / ')} · ${unitLabel(meta)}`;}).join("<br>");
     const duration=s.durationSeconds==null?'':` · ${Math.floor(s.durationSeconds/60)} min`;
