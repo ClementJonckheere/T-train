@@ -175,6 +175,69 @@ test('Rest and session clocks catch up after time passes in the background', asy
   assert.match(await page.locator('#clockLabel').innerText(), /Créneau atteint/);
 });
 
+test('Every workout opens its matching five-minute bodyweight warm-up, including repeated launches', async t => {
+  const page = await open(t);
+  for (const [key, names] of [
+    ['mass_push_a',['Marche active sur place','Cercles de bras','Pompes contre un mur','Développé épaules sans poids']],
+    ['mass_push_b',['Marche active sur place','Cercles de bras','Pompes contre un mur','Développé épaules sans poids']],
+    ['mass_pull_a',['Marche active sur place','Roulements d’épaules','Rowing sans poids','Oiseau sans poids']],
+    ['mass_pull_b',['Marche active sur place','Roulements d’épaules','Rowing sans poids','Oiseau sans poids']],
+    ['mass_legs_a',['Marche active sur place','Squats sans charge','Bascule des hanches','Montées sur la pointe des pieds']],
+    ['mass_legs_b',['Marche active sur place','Squats sans charge','Bascule des hanches','Montées sur la pointe des pieds']]
+  ]) {
+    await day(page,key);
+    await page.locator('#startWorkout').click();
+    assert.equal(await page.locator('#ringNum').innerText(),'5:00');
+    assert.deepEqual(await page.locator('#warmupSteps li > span:first-child').allTextContents(),names.map((name,index)=>`${index+1}. ${name}`));
+    assert.equal(await page.locator('#warmupStepTitle').innerText(),names[0]);
+    assert.match(await page.locator('#timerHint').innerText(),/sans haltères/);
+    assert.equal(await page.locator('#tPlus').isVisible(),false);
+    await page.locator('#tSkip').click();
+  }
+  await page.locator('#startWorkout').click();
+  assert.equal(await page.locator('#ringNum').innerText(),'5:00');
+  assert.equal(await page.locator('#warmupStepTitle').innerText(),'Marche active sur place');
+});
+
+test('Warm-up advances automatically, catches up in the background and resets on reopening', async t => {
+  const page = await open(t);
+  await day(page,'mass_push_a');
+  await page.locator('#startWorkout').click();
+  await page.clock.fastForward(120000); await page.clock.runFor(300);
+  assert.equal(await page.locator('#warmupStepTitle').innerText(),'Cercles de bras');
+  assert.match(await page.locator('#warmupStepCue').innerText(),/Change de sens après 30 secondes/);
+  assert.equal(await page.locator('#warmupSteps [aria-current="step"]').count(),1);
+  await page.clock.fastForward(60000); await page.clock.runFor(300);
+  assert.equal(await page.locator('#warmupStepTitle').innerText(),'Pompes contre un mur');
+  assert.match(await page.locator('#warmupStepCue').innerText(),/8 à 12 répétitions/);
+  await page.clock.fastForward(60000); await page.clock.runFor(300);
+  assert.equal(await page.locator('#warmupStepTitle').innerText(),'Développé épaules sans poids');
+  await page.locator('#tSkip').click();
+  await page.locator('#startWorkout').click();
+  assert.equal(await page.locator('#ringNum').innerText(),'5:00');
+  assert.match(await page.locator('#warmupCount').innerText(),/Mouvement 1 \/ 4/);
+  await page.clock.fastForward(300000); await page.clock.runFor(1000);
+  assert.equal(await page.locator('#timer').evaluate(element=>element.classList.contains('show')),false);
+  assert.equal((await read(page,'fitlog:sessions'))?.length || 0,0);
+  // Starting a work set restores the usual rest timer and its controls.
+  await card(page,'mass_flat').locator('.dot').first().click();
+  assert.equal(await page.locator('#timerLabel').innerText(),'Repos');
+  assert.equal(await page.locator('#warmupGuide').isVisible(),false);
+  assert.equal(await page.locator('#tPlus').isVisible(),true);
+  assert.equal(await page.locator('#tSkip').innerText(),'Passer');
+  assert.equal(await page.locator('#ringNum').innerText(),'1:30');
+});
+
+test('Warm-up remains readable and can be closed on a small screen with keyboard navigation', async t => {
+  const page = await open(t, {}, {viewport:{width:320,height:568}});
+  await page.locator('#startWorkout').click();
+  assert.ok(await page.locator('#timer').evaluate(element=>element.scrollWidth<=element.clientWidth));
+  await page.keyboard.press('Tab');
+  assert.equal(await page.locator('#tSkip').evaluate(element=>element===document.activeElement),true);
+  await page.locator('#tSkip').click();
+  assert.equal(await page.locator('#timer').evaluate(element=>element.classList.contains('show')),false);
+});
+
 test('Progression hint follows a complete top-of-range workout; historical units stay explicit', async t => {
   const session = {id:1,date:'2026-11-10',key:'mass_push_a',name:'Pectoraux A',exercises:[{id:'mass_flat',name:'Développé couché haltères',load:'pair',sets:Array.from({length:4},()=>({kg:10,reps:12}))}],volume:960};
   const page = await open(t, {'fitlog:sessions':[session]});

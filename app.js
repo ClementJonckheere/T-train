@@ -117,14 +117,14 @@ function renderPlan(s) {
     <p>${legacy ? 'Tu peux terminer cette ancienne séance. Ses charges et son historique gardent leur unité d’origine.' : s.focus}</p>
     <div class="week">${PROGRAM.map(day => `<button data-day="${day.key}" class="${day.key === selKey ? 'on ' : ''}${day.day === today ? 'today' : ''}" aria-label="${day.tag} : ${day.name}">${day.tag.slice(0,3)}<b>${day.day === 1 || day.day === 4 ? 'Pecs' : day.day === 2 || day.day === 5 ? 'Dos' : 'Jambes'}</b></button>`).join('')}<button disabled class="${today === 0 ? 'today' : ''}">Dim<b>Repos</b></button></div>
     ${today === 0 ? '<p>Aujourd’hui : repos. Prochaine séance prévue lundi. Tu peux consulter tes exercices ci-dessous.</p>' : ''}
-    ${!legacy ? `<p>4 min d’échauffement · environ ${mode === 20 ? '20 min, 3 exercices' : '25–30 min, 4 exercices'}. Garde environ 2 répétitions possibles en fin de série.</p>
+    ${!legacy ? `<p>5 min d’échauffement guidé, sans haltères · environ ${mode === 20 ? '20 min, 3 exercices' : '25–30 min, 4 exercices'} au total. Garde environ 2 répétitions possibles en fin de série.</p>
     <details class="ex-meta"><summary>Charges de départ et repères</summary><p>Charges affichées <b>par haltère</b> pour les mouvements à deux haltères. Départ interprété : couché 2 × 10 kg, épaules 2 × 5 kg, élévations 2 × 7 kg. Corrige directement si besoin.</p></details>
     <div class="plan-controls"><button class="small-btn ${mode === 20 ? 'on' : ''}" data-mode="20" ${current ? 'disabled' : ''}>20 min</button><button class="small-btn ${mode === 30 ? 'on' : ''}" data-mode="30" ${current ? 'disabled' : ''}>30 min</button><button class="small-btn ${ramp ? 'on' : ''}" id="rampToggle" aria-pressed="${ramp}" ${current ? 'disabled' : ''}>Reprise · 2 séries ${ramp ? '✓' : ''}</button></div>
     ${ramp ? '<p>Premières 2 semaines : 2 séries par exercice, avec 3 répétitions encore possibles.</p>' : ''}
     ${s.day === 3 || s.day === 6 ? `<label class="ex-meta">Accessoire jambes<select id="legVariant" ${current ? 'disabled' : ''}><option value="extension">Extension sur l’accessoire du banc</option><option value="lunge">Fentes arrière (sans accessoire)</option></select></label>` : ''}` : ''}
     ${current && current.date !== todayISO() ? `<p>Séance commencée le ${fmtDate(current.date)} : tes séries ont été conservées.</p>` : ''}
     <div class="session-clock" id="sessionClock"><span id="clockLabel">Durée · échauffement et repos inclus</span><b class="tabular" id="elapsed">0:00</b></div>
-    <div class="plan-controls"><button class="small-btn" id="startWorkout">${current ? 'Échauffement · 4 min' : 'Commencer · échauffement 4 min'}</button></div>
+    <div class="plan-controls"><button class="small-btn" id="startWorkout">${current ? 'Échauffement guidé · 5 min' : 'Commencer · échauffement guidé 5 min'}</button></div>
     <p id="setProgress"></p>`;
   $('#plan').querySelectorAll('[data-day]').forEach(button => button.onclick = () => switchSession(button.dataset.day));
   $('#plan').querySelectorAll('[data-mode]').forEach(button => button.onclick = async () => { state.mode = Number(button.dataset.mode); await Store.set(K_STATE, state); renderWorkout(); });
@@ -133,7 +133,11 @@ function renderPlan(s) {
     $('#legVariant').value = current?.legVariant ?? state.legVariant ?? 'extension';
     $('#legVariant').onchange = async event => { state.legVariant = event.target.value; await Store.set(K_STATE, state); renderWorkout(); };
   }
-  $('#startWorkout').onclick = () => { ensureCurrent(); persistCurrent(); renderChips(); renderWorkout(); startTimer(240, 'Échauffement', 'Mobilise les articulations puis fais 1 à 2 séries légères du premier exercice.'); };
+  $('#startWorkout').onclick = () => {
+    ensureCurrent(); persistCurrent(); renderChips(); renderWorkout();
+    const warmup = warmupForSession(s);
+    startTimer(warmup.steps.reduce((sum, step) => sum + step.seconds, 0), 'Échauffement', `${warmup.name} · sans haltères · temps total restant`, warmup);
+  };
 }
 function latestPerformance(id) {
   for (const session of sessions) { const ex = session.exercises.find(e => e.id === id); if (ex) return {session, ex}; }
@@ -222,7 +226,7 @@ function updateLive() {
   $('#setProgress').textContent = `${completedSets()} / ${plannedSets()} séries validées${current ? ' · progression sauvegardée' : ''}`;
   $('#finishBtn').textContent = completedSets() && completedSets() < plannedSets() ? 'Enregistrer la séance partielle' : 'Terminer la séance';
   $('#plan').querySelectorAll('[data-mode], #rampToggle, #legVariant').forEach(control => control.disabled = !!current);
-  $('#startWorkout').textContent = current ? 'Échauffement · 4 min' : 'Commencer · échauffement 4 min';
+  $('#startWorkout').textContent = current ? 'Échauffement guidé · 5 min' : 'Commencer · échauffement guidé 5 min';
   updateClock();
 }
 function updateClock() {
@@ -256,15 +260,22 @@ async function finishSession() {
 
 /* ---------- Minuteur fondé sur l’heure réelle ---------- */
 let tInt = null, tLeft = 0, tTotal = 0, tDeadline = 0, timerEnd = null, timerFocus = null, timerEnded = false;
+let activeWarmup = null, warmupIndex = -1;
 const RING_LEN = 2 * Math.PI * 112;
 $('#ring').setAttribute('stroke-dasharray', RING_LEN.toFixed(1));
-function startTimer(seconds, label = 'Repos', hint = '') {
+function startTimer(seconds, label = 'Repos', hint = '', warmup = null) {
   clearInterval(tInt); clearTimeout(timerEnd);
   timerEnded = false;
+  activeWarmup = warmup; warmupIndex = -1;
+  $('#warmupGuide').hidden = !warmup;
+  $('#timer').classList.toggle('warming', !!warmup);
+  $('#tPlus').hidden = !!warmup; $('#tMinus').hidden = !!warmup;
+  $('#tSkip').textContent = warmup ? 'Terminer l’échauffement' : 'Passer';
+  $('#warmupSteps').innerHTML = warmup ? warmup.steps.map((step, index) => `<li><span>${index + 1}. ${escapeHTML(step.name)}</span><span class="step-time">${step.seconds / 60} min</span></li>`).join('') : '';
   timerFocus = document.activeElement;
   tTotal = seconds; tLeft = seconds; tDeadline = Date.now() + seconds * 1000;
   $('#timerLabel').textContent = label; $('#timerHint').textContent = hint;
-  $('#timer').classList.add('show'); $('#tSkip').focus(); drawTimer();
+  $('#timer').classList.add('show'); $('#timer').scrollTop = 0; $('#tSkip').focus({preventScroll:true}); drawTimer();
   tInt = setInterval(timerTick, 250);
 }
 function timerTick() {
@@ -276,6 +287,27 @@ function timerTick() {
 function drawTimer() {
   $('#ringNum').textContent = `${Math.floor(tLeft / 60)}:${String(tLeft % 60).padStart(2, '0')}`;
   $('#ring').setAttribute('stroke-dashoffset', (RING_LEN * (1 - Math.min(1, tLeft / tTotal))).toFixed(1));
+  if (activeWarmup) drawWarmup();
+}
+function drawWarmup() {
+  const elapsed = Math.max(0, tTotal - tLeft);
+  let index = 0, start = 0;
+  while (index < activeWarmup.steps.length - 1 && elapsed >= start + activeWarmup.steps[index].seconds) {
+    start += activeWarmup.steps[index].seconds;
+    index++;
+  }
+  const step = activeWarmup.steps[index];
+  const left = Math.max(0, step.seconds - (elapsed - start));
+  $('#warmupCount').textContent = `Mouvement ${index + 1} / ${activeWarmup.steps.length} · encore ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  if (index !== warmupIndex) {
+    warmupIndex = index;
+    $('#warmupStepTitle').textContent = step.name;
+    $('#warmupStepCue').textContent = step.cue;
+    $('#warmupSteps').querySelectorAll('li').forEach((item, i) => {
+      if (i === index) item.setAttribute('aria-current', 'step');
+      else item.removeAttribute('aria-current');
+    });
+  }
 }
 function timerDone() {
   timerEnded = true;
@@ -307,7 +339,7 @@ document.addEventListener('keydown', event => {
   if (!$('#timer').classList.contains('show')) return;
   if (event.key === 'Escape') closeTimer();
   if (event.key === 'Tab') {
-    const buttons = [...$('#timer').querySelectorAll('button')];
+    const buttons = [...$('#timer').querySelectorAll('button')].filter(button => !button.hidden);
     const index = buttons.indexOf(document.activeElement);
     event.preventDefault(); buttons[(index + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length].focus();
   }
