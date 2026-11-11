@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -16,6 +16,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
       - run: npm run check
-      - run: npm test
+      - name: Parcours navigateur (Chrome préinstallé)
+        run: PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$(command -v google-chrome)" npm test
