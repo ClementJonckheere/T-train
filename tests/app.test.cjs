@@ -221,7 +221,7 @@ test('Warm-up advances automatically, catches up in the background and resets on
   assert.equal((await read(page,'fitlog:sessions'))?.length || 0,0);
   // Starting a work set restores the usual rest timer and its controls.
   await card(page,'mass_flat').locator('.dot').first().click();
-  assert.equal(await page.locator('#timerLabel').innerText(),'Repos');
+  assert.equal(await page.locator('#timerLabel').textContent(),'Repos');
   assert.equal(await page.locator('#warmupGuide').isVisible(),false);
   assert.equal(await page.locator('#tPlus').isVisible(),true);
   assert.equal(await page.locator('#tSkip').innerText(),'Passer');
@@ -265,4 +265,7 @@ test('PWA caches new script files and opens offline', async t => {
   await page.reload(); await page.waitForSelector('.ex');
   assert.equal(await page.locator('#chips .chip').count(),6);
   assert.match(await page.locator('#plan h2').innerText(), /Jambes A/);
+  await page.locator('#startWorkout').click();
+  assert.equal(await page.locator('#warmupStepTitle').innerText(),'Marche active sur place');
+  assert.match(await page.locator('#warmupSteps').innerText(), /Squats sans charge/);
 });
