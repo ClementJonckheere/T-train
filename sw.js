@@ -1,8 +1,9 @@
-const CACHE = 'seance-v10';
+const CACHE = 'seance-v11';
 const CORE = [
   './',
   './index.html',
   './program.js',
+  './motivation.js',
   './app.js',
   './manifest.json',
   './icon-192.png',

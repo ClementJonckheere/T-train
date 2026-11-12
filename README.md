@@ -20,6 +20,11 @@ charges, répétitions, pesées et brouillons sont conservés sur l'appareil.
 - Mode **20 minutes** : les trois premiers exercices ; mode **30 minutes** :
   les quatre. Une séance partielle peut être enregistrée.
 - Mode **Reprise** : deux séries par exercice pour les premières semaines.
+- Bouton **Aujourd'hui, j'ai la flemme** : environ 12 à 15 minutes, échauffement
+  compris, avec les deux premiers exercices et deux séries chacun. Ce choix
+  ponctuel conserve la préférence habituelle de 20/30 minutes pour la suite.
+  **Continuer en format 30 min** ajoute les séries/exercices restants sans
+  effacer le travail déjà réalisé ni redémarrer le chronomètre.
 - L'extension peut être remplacée par des fentes arrière si l'accessoire du banc
   ne convient pas. Le mouvement et son historique restent distincts.
 - Les formats sont choisis avant de commencer ; ils restent fixes pendant la séance.
@@ -40,6 +45,30 @@ guide à tout moment ; le relancer recommence les cinq minutes.
 
 Le temps d'échauffement est inclus dans le créneau choisi. Les réglages ±15 s
 restent réservés aux temps de repos pour conserver les durées du guide.
+
+## Objectifs facultatifs et records
+
+- **Petit défi +1 répétition** : un seul objectif à la fois, proposé à partir
+  de la dernière séance complète comparable. À exercice, charge et nombre de
+  séries identiques, il vise une répétition de plus au total, dans la fourchette
+  prévue. Il est conservé avec le brouillon. Changer la charge le met de côté.
+- **Défi du mois** dans Progression : choisir une proposition issue de
+  l'historique, avec deux répétitions de plus au total (plafonnées à la limite
+  de la fourchette). Le défi choisi garde sa charge, ses séries et son objectif
+  jusqu'à la fin du mois ; sa validation est affichée et sauvegardée.
+- **Régularité** : démarrer un défi de trois séances complètes sur trois dates
+  distinctes du lundi au samedi. Les versions courtes comptent, les repos ne
+  remettent rien à zéro et il n'y a pas de date limite.
+- **Meilleures performances** : comparaison séparée pour chaque exercice,
+  charge et nombre de séries. Une première performance établit un repère ; une
+  amélioration réelle déclenche un message de record lors de l'enregistrement.
+
+Les séances partielles, les anciennes unités, les charges mélangées dans un
+exercice et les répétitions hors fourchette sont exclues des comparaisons de
+performance. La première séance sert à établir les repères. Aucun objectif ne
+force une hausse de charge, un passage à l'échec ou un dépassement du créneau.
+Le mode Reprise garde ses objectifs de régularité et les repères de performance,
+sans proposer le défi +1. Les défis sont inclus dans l'export JSON.
 
 ## Charges et progression
 
@@ -89,14 +118,14 @@ supprimé par l'utilisateur, la navigation privée ou le système : garde une co
 ## Installation et mise à jour
 
 Tous les fichiers de production restent à la racine : `index.html`, `app.js`,
-`program.js`, `manifest.json`, `sw.js` et les trois icônes PNG.
+`program.js`, `motivation.js`, `manifest.json`, `sw.js` et les trois icônes PNG.
 
 1. Sur GitHub, **Settings → Pages**, sélectionner **main**, dossier **/ (root)**.
 2. Ouvrir `https://clementjonckheere.github.io/T-train/` une fois avec une connexion.
 3. iPhone/Safari : **Partager → Sur l'écran d'accueil**. Android/Chrome :
    **Installer l'application** depuis le menu.
 
-Le cache `seance-v10` inclut les deux fichiers JavaScript. Après une mise à jour,
+Le cache `seance-v11` inclut les trois fichiers JavaScript. Après une mise à jour,
 ouvrir l'app avec une connexion puis la fermer et la rouvrir si l'ancien écran
 reste affiché. Ne pas effacer les données du site pour mettre l'app à jour.
 Pour les prochaines versions, incrémenter le nom du cache dans `sw.js`.

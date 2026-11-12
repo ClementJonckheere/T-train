@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "check": "node --check app.js && node --check program.js && node --check sw.js",
-    "test": "node --test tests/app.test.cjs"
+    "check": "node --check app.js && node --check program.js && node --check motivation.js && node --check sw.js",
+    "test": "node --test tests/*.test.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"
