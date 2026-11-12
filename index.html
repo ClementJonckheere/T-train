@@ -210,6 +210,17 @@
   .toast{max-width:calc(100vw - 32px);width:max-content;text-align:center}
   .add-row input{min-width:0}
   .week button b{font-size:10px}
+  .anti-btn{border-color:var(--teal);color:var(--teal)}
+  .goal-card{border-left:3px solid var(--teal);padding:8px 12px;margin:12px 0;background:var(--card2);border-radius:0 10px 10px 0;font-size:13px}
+  .goal-card p{margin:5px 0}
+  .goal-card strong{color:var(--teal)}
+  .goal-card small{display:block;color:var(--mut);margin-top:5px}
+  .challenge-section{padding:12px 0;border-top:1px solid var(--line);font-size:13px}
+  .challenge-section h4{font-size:15px;margin:0 0 6px}
+  .challenge-section p{color:var(--mut);margin:6px 0 10px}
+  .challenge-section select{font-size:13px;margin-bottom:8px;max-width:100%}
+  .challenge-section .small-btn{margin-top:4px}
+  #challenges{min-width:0}
   button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
 </style>
 </head>
@@ -244,6 +255,7 @@
       <div class="stat"><div class="k tabular" id="pSessions">0</div><div class="l">séances totales</div></div>
       <div class="stat"><div class="k tabular" id="pWeekVol">0</div><div class="l">volume 7 jours (kg)</div></div>
     </div>
+    <section class="panel" id="challenges" aria-label="Défis et records"></section>
     <div class="panel">
       <h3>Progression par exercice</h3>
       <select id="exPick"></select>
@@ -358,6 +370,7 @@
 </nav>
 
 <script src="./program.js"></script>
+<script src="./motivation.js"></script>
 <script src="./app.js"></script>
 </body>
 </html>

@@ -35,7 +35,7 @@ function getW(ex) {
   const w = state.weights[ex.id] || {};
   return {kg:Object.hasOwn(w, 'kg') ? w.kg : ex.kg, reps:w.reps ?? ex.reps ?? ex.rep[0]};
 }
-async function setW(id, kg, reps) { state.weights[id] = {kg,reps}; await Store.set(K_STATE, state); }
+async function setW(id, kg, reps) { state.weights[id] = {kg,reps}; await Store.set(K_STATE, state); renderDailyGoal(); }
 function unitLabel(ex) { return ex.load === 'pair' ? 'kg / haltère' : ex.load === 'single' ? 'kg · 1 haltère' : ex.load === 'machine' ? 'kg sur accessoire' : 'kg · ancienne saisie'; }
 function loadSummary(ex, kg) {
   if (kg == null) return 'Charge à régler avant de valider une série.';
@@ -51,8 +51,8 @@ function sessionExercises(s) {
   const ramp = draft?.ramp ?? state.ramp ?? false;
   const variant = draft?.legVariant ?? state.legVariant ?? 'extension';
   return s.ex.map(ex => ex.id === EXERCISES.extension.id && variant === 'lunge' ? EXERCISES.lunge : ex)
-    .filter((ex, i) => mode !== 20 || i < 3 || draft?.done?.[ex.id]?.some(Boolean))
-    .map(ex => ({...ex, sets:ramp ? Math.min(2, ex.sets) : ex.sets}));
+    .filter((ex, i) => (mode === 15 ? i < 2 : mode !== 20 || i < 3) || draft?.done?.[ex.id]?.some(Boolean))
+    .map(ex => ({...ex, sets:ramp || mode === 15 ? Math.min(2, ex.sets) : ex.sets}));
 }
 async function persistCurrent() {
   if (current) drafts[current.key] = current;
@@ -62,6 +62,8 @@ async function persistCurrent() {
 async function boot() {
   state = await Store.get(K_STATE) || {weights:{}};
   state.weights ||= {};
+  state.motivation ||= {monthly:{}};
+  state.motivation.monthly ||= {};
   sessions = await Store.get(K_SESS) || [];
   bodyweight = await Store.get(K_BW) || [];
   trainedDays = await Store.get(K_DAYS) || {};
@@ -98,13 +100,14 @@ function renderChips() {
     $('#chips').appendChild(button);
   });
 }
-function ensureCurrent() {
+function ensureCurrent(mode) {
   if (!current) {
-    current = {date:todayISO(), key:selKey, done:{}, startedAt:Date.now(), mode:state.mode || 30, ramp:!!state.ramp, legVariant:state.legVariant || 'extension'};
+    current = {date:todayISO(), key:selKey, done:{}, startedAt:Date.now(), mode:mode || state.mode || 30, ramp:!!state.ramp, legVariant:state.legVariant || 'extension'};
     drafts[selKey] = current;
     renderChips();
   }
   current.startedAt ||= Date.now();
+  if (!current.challenge) current.challenge = makeRepGoal();
 }
 function renderPlan(s) {
   const today = new Date().getDay();
@@ -117,7 +120,7 @@ function renderPlan(s) {
     <p>${legacy ? 'Tu peux terminer cette ancienne séance. Ses charges et son historique gardent leur unité d’origine.' : s.focus}</p>
     <div class="week">${PROGRAM.map(day => `<button data-day="${day.key}" class="${day.key === selKey ? 'on ' : ''}${day.day === today ? 'today' : ''}" aria-label="${day.tag} : ${day.name}">${day.tag.slice(0,3)}<b>${day.day === 1 || day.day === 4 ? 'Pecs' : day.day === 2 || day.day === 5 ? 'Dos' : 'Jambes'}</b></button>`).join('')}<button disabled class="${today === 0 ? 'today' : ''}">Dim<b>Repos</b></button></div>
     ${today === 0 ? '<p>Aujourd’hui : repos. Prochaine séance prévue lundi. Tu peux consulter tes exercices ci-dessous.</p>' : ''}
-    ${!legacy ? `<p>5 min d’échauffement guidé, sans haltères · environ ${mode === 20 ? '20 min, 3 exercices' : '25–30 min, 4 exercices'} au total. Garde environ 2 répétitions possibles en fin de série.</p>
+    ${!legacy ? `<p>5 min d’échauffement guidé, sans haltères · environ ${mode === 15 ? '12–15 min, 2 exercices de 2 séries' : mode === 20 ? '20 min, 3 exercices' : '25–30 min, 4 exercices'} au total. Garde environ 2 répétitions possibles en fin de série.</p>
     <details class="ex-meta"><summary>Charges de départ et repères</summary><p>Charges affichées <b>par haltère</b> pour les mouvements à deux haltères. Départ interprété : couché 2 × 10 kg, épaules 2 × 5 kg, élévations 2 × 7 kg. Corrige directement si besoin.</p></details>
     <div class="plan-controls"><button class="small-btn ${mode === 20 ? 'on' : ''}" data-mode="20" ${current ? 'disabled' : ''}>20 min</button><button class="small-btn ${mode === 30 ? 'on' : ''}" data-mode="30" ${current ? 'disabled' : ''}>30 min</button><button class="small-btn ${ramp ? 'on' : ''}" id="rampToggle" aria-pressed="${ramp}" ${current ? 'disabled' : ''}>Reprise · 2 séries ${ramp ? '✓' : ''}</button></div>
     ${ramp ? '<p>Premières 2 semaines : 2 séries par exercice, avec 3 répétitions encore possibles.</p>' : ''}
@@ -125,7 +128,9 @@ function renderPlan(s) {
     ${current && current.date !== todayISO() ? `<p>Séance commencée le ${fmtDate(current.date)} : tes séries ont été conservées.</p>` : ''}
     <div class="session-clock" id="sessionClock"><span id="clockLabel">Durée · échauffement et repos inclus</span><b class="tabular" id="elapsed">0:00</b></div>
     <div class="plan-controls"><button class="small-btn" id="startWorkout">${current ? 'Échauffement guidé · 5 min' : 'Commencer · échauffement guidé 5 min'}</button></div>
-    <p id="setProgress"></p>`;
+    ${!legacy && !current && today !== 0 ? '<div class="plan-controls"><button class="small-btn anti-btn" id="antiStart">Aujourd’hui, j’ai la flemme · 12–15 min</button></div><p>Une version courte suffit pour garder le rythme les jours de faible motivation.</p>' : ''}
+    ${mode === 15 ? '<p>Objectif anti-flemme : 4 séries, puis ta séance courte est complète. Tu peux aussi continuer si tu en as envie.</p><button class="small-btn" id="continueWorkout">Continuer en format 30 min</button>' : ''}
+    <p id="setProgress"></p><div id="dailyGoal"></div>`;
   $('#plan').querySelectorAll('[data-day]').forEach(button => button.onclick = () => switchSession(button.dataset.day));
   $('#plan').querySelectorAll('[data-mode]').forEach(button => button.onclick = async () => { state.mode = Number(button.dataset.mode); await Store.set(K_STATE, state); renderWorkout(); });
   if ($('#rampToggle')) $('#rampToggle').onclick = async () => { state.ramp = !state.ramp; await Store.set(K_STATE, state); renderWorkout(); };
@@ -133,10 +138,71 @@ function renderPlan(s) {
     $('#legVariant').value = current?.legVariant ?? state.legVariant ?? 'extension';
     $('#legVariant').onchange = async event => { state.legVariant = event.target.value; await Store.set(K_STATE, state); renderWorkout(); };
   }
-  $('#startWorkout').onclick = () => {
-    ensureCurrent(); persistCurrent(); renderChips(); renderWorkout();
+  const begin = mode => {
+    ensureCurrent(mode); persistCurrent(); renderChips(); renderWorkout();
     const warmup = warmupForSession(s);
     startTimer(warmup.steps.reduce((sum, step) => sum + step.seconds, 0), 'Échauffement', `${warmup.name} · sans haltères · temps total restant`, warmup);
+  };
+  $('#startWorkout').onclick = () => begin();
+  if ($('#antiStart')) $('#antiStart').onclick = () => begin(15);
+  if ($('#continueWorkout')) $('#continueWorkout').onclick = async () => {
+    current.mode = 30; current.challenge = makeRepGoal();
+    await persistCurrent(); renderChips(); renderWorkout();
+  };
+}
+
+/* ---------- Objectifs facultatifs et records ---------- */
+function makeRepGoal() {
+  const s = sessByKey(selKey);
+  if (isLegacy(s) || (current?.ramp ?? state.ramp)) return null;
+  return Motivation.nextRepGoal(sessionExercises(s).map(ex => ({...ex,kg:getW(ex).kg})),sessions);
+}
+function goalDescription(goal) {
+  return `${escapeHTML(goal.name)} · ${fmtKg(goal.kg)} ${unitLabel({load:goal.load})} · ${goal.sets} séries · ${goal.target} répétitions au total`;
+}
+function renderDailyGoal() {
+  const box = $('#dailyGoal');
+  if (!box) return;
+  const latest = sessions[0];
+  if (!current && latest?.date === todayISO() && latest.achievements?.length) {
+    box.innerHTML = `<div class="goal-card"><strong>${latest.achievements.map(escapeHTML).join(' · ')}</strong><small>Retrouve tes défis et records dans Progression.</small></div>`;
+    return;
+  }
+  if ((!current && new Date().getDay() === 0) || isLegacy(sessByKey(selKey))) { box.innerHTML = ''; return; }
+  const target = current ? current.challenge : makeRepGoal();
+  if (!target) { box.innerHTML = '<p class="ex-meta">Défis et records dans Progression. Les objectifs de performance apparaissent après une séance complète comparable.</p>'; return; }
+  const done = (current?.done?.[target.exerciseId] || []).filter(Boolean);
+  const changed = done.some(set => set.kg !== target.kg) || getW(exById(target.exerciseId)).kg !== target.kg;
+  const total = done.reduce((sum,set) => sum+set.reps,0);
+  box.innerHTML = `<div class="goal-card"><strong>Petit défi facultatif · +1 répétition</strong><p>${goalDescription(target)}</p><small>Dernière séance comparable : ${target.baseline} répétitions. ${changed ? 'Charge modifiée : ce défi est mis de côté pour cette séance.' : `Actuellement : ${total} / ${target.target} répétitions, sur ${done.length} / ${target.sets} séries.`}</small><small>Répartis la répétition supplémentaire entre tes séries, dans la fourchette prévue, avec une technique propre et 2 répétitions en réserve.</small></div>`;
+}
+function renderChallenges() {
+  const box = $('#challenges'), period = todayISO().slice(0,7);
+  const monthly = state.motivation.monthly[period];
+  const options = Motivation.monthlyOptions(Object.values(EXERCISES),sessions);
+  const regularity = state.motivation.regularity;
+  const dates = Motivation.regularity(regularity,sessions);
+  const records = Motivation.records(sessions,Object.values(EXERCISES)).slice(0,6);
+  const monthName = new Date(period+'-01T12:00:00').toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  box.innerHTML = `<h3>Défis et records</h3>
+    <div class="challenge-section"><h4>Défi de ${monthName}</h4>
+      ${monthly ? `<p>${goalDescription(monthly)}</p><div class="goal-card">${monthly.completedAt ? '<strong>Défi du mois validé 🎉</strong>' : `Objectif : passer de ${monthly.baseline} à ${monthly.target} répétitions avant la fin du mois.`}</div><p>Validation sur une séance complète, à cette charge et avec ce nombre de séries.</p><button class="small-btn" id="changeMonthly">Choisir un autre défi</button>` : options.length ? `<p>Choisis un objectif tiré de tes séances complètes. Il restera fixe jusqu’à la fin du mois.</p><select id="monthlyPick" aria-label="Choisir le défi du mois">${options.map((goal,i)=>`<option value="${i}">${goalDescription(goal)}</option>`).join('')}</select><button class="small-btn" id="startMonthly">Choisir ce défi</button>` : '<p>Complète une première séance dans la fourchette prévue pour débloquer un défi personnalisé. Les anciennes unités sont conservées séparément.</p>'}
+    </div>
+    <div class="challenge-section"><h4>Régularité · 3 séances</h4><p>Trois séances complètes sur trois jours distincts, du lundi au samedi. Les formats courts comptent. Les jours de repos ne remettent rien à zéro.</p>
+      ${regularity ? `<strong id="regularityCount">${dates.length} / 3${dates.length === 3 ? ' · Défi validé 🎉' : ''}</strong>` : ''}
+      ${!regularity || dates.length === 3 ? `<div><button class="small-btn" id="startRegularity">${regularity ? 'Nouveau défi de régularité' : 'Commencer le défi de régularité'}</button></div>` : '<p>Continue à ton rythme : ce défi n’a pas de date limite.</p>'}
+    </div>
+    <div class="challenge-section"><h4>Meilleures performances</h4><p>Même exercice, même charge et même nombre de séries. Une première performance sert de repère ; les records suivants doivent la dépasser.</p>
+      ${records.length ? records.map(record=>`<div class="log"><div>${escapeHTML(record.name)}<div class="s">${fmtKg(record.kg)} ${unitLabel({load:record.load})} · ${record.sets} séries · ${fmtDate(record.date)}</div></div><div class="v">${record.total}<div class="s">reps</div></div></div>`).join('') : '<p>Ton premier repère apparaîtra après une séance complète.</p>'}
+    </div>`;
+  if ($('#startMonthly')) $('#startMonthly').onclick = async () => {
+    state.motivation.monthly[period] = {...options[Number($('#monthlyPick').value)],period,createdAt:Date.now()};
+    await Store.set(K_STATE,state); renderChallenges(); toast('Défi du mois choisi');
+  };
+  if ($('#changeMonthly')) $('#changeMonthly').onclick = async () => { delete state.motivation.monthly[period]; await Store.set(K_STATE,state); renderChallenges(); };
+  if ($('#startRegularity')) $('#startRegularity').onclick = async () => {
+    state.motivation.regularity = {createdAt:Date.now(),startDate:todayISO()};
+    await Store.set(K_STATE,state); renderChallenges(); toast('Défi de régularité commencé');
   };
 }
 function latestPerformance(id) {
@@ -225,9 +291,10 @@ function updateLive() {
   $('#finishBtn').disabled = saving || completedSets() === 0;
   $('#setProgress').textContent = `${completedSets()} / ${plannedSets()} séries validées${current ? ' · progression sauvegardée' : ''}`;
   $('#finishBtn').textContent = completedSets() && completedSets() < plannedSets() ? 'Enregistrer la séance partielle' : 'Terminer la séance';
-  $('#plan').querySelectorAll('[data-mode], #rampToggle, #legVariant').forEach(control => control.disabled = !!current);
+  $('#plan').querySelectorAll('[data-mode], #rampToggle, #legVariant, #antiStart').forEach(control => control.disabled = !!current);
   $('#startWorkout').textContent = current ? 'Échauffement guidé · 5 min' : 'Commencer · échauffement guidé 5 min';
   updateClock();
+  renderDailyGoal();
 }
 function updateClock() {
   if (!$('#elapsed')) return;
@@ -245,7 +312,19 @@ async function finishSession() {
     const ex = exById(id);
     return {id, name:ex?.n || id, load:ex?.load || 'legacy', sides:ex?.sides || 1, sets:values.filter(Boolean)};
   }).filter(ex => ex.sets.length);
-  const entry = {id:Date.now(), date:draft.date, key:draft.key, name:s.name, exercises, volume:currentVolume(), durationSeconds:draft.startedAt ? Math.max(0, Math.floor((Date.now() - draft.startedAt) / 1000)) : null, partial:completedSets(draft) < plannedSets(), programVersion:isLegacy(s) ? 'legacy' : 'mass-v1'};
+  const entry = {id:Date.now(), date:draft.date, key:draft.key, name:s.name+(draft.mode === 15 ? ' · Anti-flemme' : ''), exercises, volume:currentVolume(), durationSeconds:draft.startedAt ? Math.max(0, Math.floor((Date.now() - draft.startedAt) / 1000)) : null, partial:completedSets(draft) < plannedSets(), programVersion:isLegacy(s) ? 'legacy' : 'mass-v1', mode:draft.mode, ramp:!!draft.ramp};
+  entry.records = Motivation.newRecords(entry,sessions,Object.values(EXERCISES));
+  entry.achievements = [];
+  if (draft.mode === 15 && !entry.partial) entry.achievements.push('Séance courte complète 💪');
+  if (draft.challenge && Motivation.achieved(draft.challenge,entry)) entry.achievements.push('Objectif +1 atteint');
+  if (entry.records.length) entry.achievements.push(`${entry.records.length} record${entry.records.length > 1 ? 's' : ''} personnel${entry.records.length > 1 ? 's' : ''} 🎉`);
+  const monthly = state.motivation.monthly[todayISO().slice(0,7)];
+  if (monthly && !monthly.completedAt && Motivation.achieved(monthly,entry)) {
+    monthly.completedAt = entry.date; entry.achievements.push('Défi du mois validé 🎉');
+    await Store.set(K_STATE,state);
+  }
+  const regularity = state.motivation.regularity;
+  if (Motivation.regularity(regularity,sessions).length < 3 && Motivation.regularity(regularity,[entry,...sessions]).length === 3) entry.achievements.push('Défi de régularité validé 🎉');
   sessions.unshift(entry);
   await Store.set(K_SESS, sessions);
   trainedDays[entry.date] = true; await Store.set(K_DAYS, trainedDays);
@@ -255,7 +334,7 @@ async function finishSession() {
   saving = false; closeTimer();
   if (isLegacy(s)) switchSession(PROGRAM.find(day => day.day === new Date().getDay())?.key || PROGRAM[0].key);
   else { renderChips(); renderWorkout(); }
-  toast('Séance enregistrée 💪');
+  toast(entry.achievements[0] || 'Séance enregistrée 💪');
 }
 
 /* ---------- Minuteur fondé sur l’heure réelle ---------- */
@@ -347,6 +426,7 @@ document.addEventListener('keydown', event => {
 
 /* ---------- VUE PROGRESSION ---------- */
 function renderProg(){
+  renderChallenges();
   $("#pSessions").textContent=sessions.length;
   const weekAgo=new Date(); weekAgo.setDate(weekAgo.getDate()-6);
   const from=todayISO(weekAgo), through=todayISO();

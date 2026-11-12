@@ -10,7 +10,7 @@ const root = path.resolve(__dirname, '..');
 before(async () => {
   server = http.createServer((request, response) => {
     const name = new URL(request.url, 'http://localhost').pathname.split('/').pop() || 'index.html';
-    if (!['index.html','app.js','program.js','sw.js','manifest.json','icon-192.png','icon-512.png','icon-maskable-512.png'].includes(name)) { response.writeHead(404).end(); return; }
+    if (!['index.html','app.js','program.js','motivation.js','sw.js','manifest.json','icon-192.png','icon-512.png','icon-maskable-512.png'].includes(name)) { response.writeHead(404).end(); return; }
     const type = name.endsWith('.js') ? 'application/javascript' : name.endsWith('.json') ? 'application/json' : name.endsWith('.png') ? 'image/png' : 'text/html';
     response.writeHead(200, {'Content-Type':type, 'Cache-Control':'no-cache'});
     fs.createReadStream(path.join(root, name)).pipe(response);
@@ -47,6 +47,83 @@ async function validate(page, id, index = 0) {
   if (await page.locator('#timer').evaluate(element => element.classList.contains('show'))) await page.locator('#tSkip').click();
 }
 const read = (page, key) => page.evaluate(key => JSON.parse(localStorage.getItem(key)), key);
+const benchmark = (totals=[12,11,10,9], extra={}) => ({id:1794312000000,date:'2026-11-10',key:'mass_push_a',name:'Pectoraux A',programVersion:'mass-v1',partial:false,volume:840,exercises:[{id:'mass_flat',name:'Développé couché haltères',load:'pair',sides:1,sets:totals.map(reps=>({kg:10,reps}))}],...extra});
+
+test('Anti-flemme starts five-minute warm-up, saves four sets as complete and preserves the normal preference', async t => {
+  const page = await open(t);
+  await day(page,'mass_push_a');
+  await page.locator('#antiStart').click();
+  assert.equal(await page.locator('#ringNum').innerText(),'5:00');
+  await page.locator('#tSkip').click();
+  assert.equal(await page.locator('.ex').count(),2);
+  assert.equal(await page.locator('.dot').count(),4);
+  for (const id of ['mass_flat','mass_press']) for (const index of [0,1]) await validate(page,id,index);
+  await page.reload(); await page.waitForSelector('.ex');
+  assert.equal(await page.locator('.dot.on').count(),4);
+  assert.equal((await read(page,'fitlog:current')).mode,15);
+  await page.locator('#finishBtn').click();
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('fitlog:sessions')||'[]').length===1);
+  const [session] = await read(page,'fitlog:sessions');
+  assert.equal(session.partial,false); assert.equal(session.mode,15);
+  assert.match(session.name,/Anti-flemme/);
+  assert.match(await page.locator('#dailyGoal').innerText(),/Séance courte complète/);
+  assert.equal(await page.locator('.ex').count(),4);
+  assert.equal(await page.locator('.dot').count(),10);
+});
+
+test('Continuing a short workout preserves completed sets and the original start time', async t => {
+  const page = await open(t);
+  await day(page,'mass_push_a'); await page.locator('#antiStart').click(); await page.locator('#tSkip').click();
+  await validate(page,'mass_flat');
+  const before = await read(page,'fitlog:current');
+  await page.locator('#continueWorkout').click();
+  assert.equal(await page.locator('.dot').count(),10);
+  assert.equal(await page.locator('.dot.on').count(),1);
+  const after = await read(page,'fitlog:current');
+  assert.equal(after.startedAt,before.startedAt); assert.deepEqual(after.done,before.done); assert.equal(after.mode,30);
+});
+
+test('Daily target is concrete and frozen; changing load puts it aside', async t => {
+  const page = await open(t,{'fitlog:sessions':[benchmark()]});
+  await day(page,'mass_push_a');
+  assert.match(await page.locator('#dailyGoal').innerText(),/43 répétitions au total/);
+  await page.locator('#startWorkout').click(); await page.locator('#tSkip').click();
+  assert.equal((await read(page,'fitlog:current')).challenge.target,43);
+  await card(page,'mass_flat').locator('[data-a="kg+"]').click();
+  assert.match(await page.locator('#dailyGoal').innerText(),/Charge modifiée/);
+  await page.reload(); await page.waitForSelector('.ex');
+  assert.equal((await read(page,'fitlog:current')).challenge.kg,10);
+});
+
+test('Chosen monthly target and records validate only on a complete comparable workout; export includes challenges', async t => {
+  const page = await open(t,{'fitlog:sessions':[benchmark()]});
+  await page.locator('nav [data-tab="prog"]').click();
+  await page.locator('#startMonthly').click();
+  const chosen = (await read(page,'fitlog:state')).motivation.monthly['2026-11'];
+  assert.equal(chosen.baseline,42); assert.equal(chosen.target,44);
+  await page.locator('nav [data-tab="workout"]').click(); await day(page,'mass_push_a');
+  for (const [index,reps] of [12,12,11,9].entries()) {
+    await card(page,'mass_flat').locator('[data-v="reps"]').fill(String(reps)); await validate(page,'mass_flat',index);
+  }
+  for (const [id,kg] of [['mass_press','5'],['mass_lateral','7'],['mass_triceps','6']]) {
+    await card(page,id).locator('[data-v="kg"]').fill(kg);
+    for (const index of [0,1]) await validate(page,id,index);
+  }
+  await page.locator('#finishBtn').click();
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('fitlog:sessions')||'[]').length===2);
+  const [session] = await read(page,'fitlog:sessions');
+  assert.equal(session.records[0].total,44); assert.equal(session.records[0].previous,42);
+  assert.match(session.achievements.join(' '),/Objectif \+1 atteint.*record.*Défi du mois validé/);
+  await page.locator('nav [data-tab="prog"]').click();
+  assert.match(await page.locator('#challenges').innerText(),/Défi du mois validé/);
+  await page.locator('#startRegularity').click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.locator('#exportData').click();
+  const download = await downloadPromise;
+  const data = JSON.parse(fs.readFileSync(await download.path(),'utf8'));
+  assert.equal(data.state.motivation.monthly['2026-11'].target,44);
+  assert.ok(data.state.motivation.regularity);
+});
 
 // These exercise user flows and migration rather than merely checking data declarations.
 test('Six short sessions, correct daily choice, known weights and unknown weights', async t => {
